@@ -1,6 +1,10 @@
 import React from 'react'
 
-const Topbar = ({ selectedParty = '', partyOptions = [], onPartyChange = () => {}, searchValue = '', onSearchChange = () => {} }) => {
+const Topbar = ({ user = null, selectedParty = '', partyOptions = [], onPartyChange = () => {}, searchValue = '', onSearchChange = () => {} }) => {
+  const userName = user?.name || 'User'
+  const userRole = user?.role || ''
+  const userInitials = userName.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
+
   return (
     <header className="topbar admin-topbar">
       <div className="topbar-left">
@@ -29,10 +33,10 @@ const Topbar = ({ selectedParty = '', partyOptions = [], onPartyChange = () => {
 
       <div className="topbar-right">
         <div className="profile-chip top-profile-chip">
-          <div className="profile-avatar">RA</div>
+          <div className="profile-avatar">{userInitials}</div>
           <div className="profile-copy">
-            <strong>Riya Admin</strong>
-            <span>Admin</span>
+            <strong>{userName}</strong>
+            <span>{userRole}</span>
           </div>
           <span className="profile-chevron" aria-hidden="true">⌄</span>
         </div>

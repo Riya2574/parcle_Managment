@@ -25,6 +25,7 @@ const App = () => {
   const [successMessage, setSuccessMessage] = useState('')
   const [parcelPageInitialParty, setParcelPageInitialParty] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
 
   const loadData = async () => {
     const [partiesResult, parcelsResult, dashboardResult, reportsResult, usersResult] = await Promise.allSettled([
@@ -61,7 +62,7 @@ const App = () => {
 
   useEffect(() => {
     if (api.getToken()) {
-      api.me().then(() => { setIsAuthenticated(true); return loadData() }).catch(() => {
+      api.me().then((result) => { setCurrentUser(result.user); setIsAuthenticated(true); return loadData() }).catch(() => {
         api.setToken(null)
         setError('Your session expired. Please sign in again.')
       })
@@ -73,6 +74,7 @@ const App = () => {
       setError('')
       const result = await api.login(credentials)
       api.setToken(result.token)
+      setCurrentUser(result.user)
       setIsAuthenticated(true)
       await loadData()
       setSuccessMessage('Login successful.')
@@ -84,6 +86,7 @@ const App = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false)
+    setCurrentUser(null)
     api.setToken(null)
     setSelectedParty('')
     setTopbarSearch('')
@@ -161,6 +164,7 @@ const App = () => {
         {error && <p className="auth-error">{error}</p>}
         {successMessage && <p className="auth-success" role="status">{successMessage}</p>}
         <Topbar
+          user={currentUser}
           activeView={activeView}
           selectedParty={selectedParty}
           partyOptions={partyList.map((party) => party.name)}
