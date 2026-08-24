@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+const configuredApiUrl = import.meta.env.VITE_API_URL
+const API_URL = configuredApiUrl
+  ? `${configuredApiUrl.replace(/\/+$/, '')}${configuredApiUrl.replace(/\/+$/, '').endsWith('/api') ? '' : '/api'}`
+  : '/api'
 
 let token = localStorage.getItem('parcel_token')
 
