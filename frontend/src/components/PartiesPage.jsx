@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
-const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', onPartyChange, onCreateParty, onDeleteParty, onGoToParcels, onUpdateParcel, onDeleteParcel, searchQuery = '' }) => {
+const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', onPartyChange, onCreateParty, onDeleteParty, onGoToParcels, onUpdateParcel, onDeleteParcel, canDelete = false, searchQuery = '' }) => {
   const [partySearch, setPartySearch] = useState('')
   const [tableSearch, setTableSearch] = useState('')
   const [tableStatus, setTableStatus] = useState('All Status')
@@ -8,6 +8,7 @@ const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', 
   const [newPartyName, setNewPartyName] = useState('')
   const [newPartyPhone, setNewPartyPhone] = useState('')
   const [newPartyLocation, setNewPartyLocation] = useState('')
+  const [paymentDrafts, setPaymentDrafts] = useState({})
 
   useEffect(() => {
     if (!partyList.length) {
@@ -69,8 +70,18 @@ const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', 
   }
 
   const handlePaymentChange = (parcelId, value) => {
-    if (!onUpdateParcel) return
-    onUpdateParcel(parcelId, () => ({ payment: value }))
+    setPaymentDrafts((current) => ({ ...current, [parcelId]: value }))
+  }
+
+  const handlePaymentSave = async (parcelId, currentPayment) => {
+    if (!onUpdateParcel || paymentDrafts[parcelId] === undefined || paymentDrafts[parcelId] === currentPayment) return
+    const updatedParcel = await onUpdateParcel(parcelId, () => ({ payment: paymentDrafts[parcelId] }))
+    if (!updatedParcel) return
+    setPaymentDrafts((current) => {
+      const next = { ...current }
+      delete next[parcelId]
+      return next
+    })
   }
 
   const handleDeleteParty = (partyId) => {
@@ -268,13 +279,13 @@ const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', 
                 </div>
                 <div className="details-actions">
                   <span className="status-pill status-active">Active</span>
-                  <button
+                  {canDelete && <button
                     type="button"
                     className="secondary-button small-button"
                     onClick={() => handleDeleteParty(selectedParty.id)}
                   >
                     Delete Party
-                  </button>
+                  </button>}
                 </div>
               </div>
 
@@ -357,13 +368,16 @@ const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', 
                             <td>{row.receivedDate}</td>
                             <td>
                               {row.status === 'Received' ? (
-                                <input
-                                  type="text"
-                                  className="payment-input"
-                                  value={row.payment || ''}
-                                  onChange={(event) => handlePaymentChange(row.id, event.target.value)}
-                                  placeholder="Enter payment"
-                                />
+                                <div className="payment-editor">
+                                  <input
+                                    type="text"
+                                    className="payment-input"
+                                    value={paymentDrafts[row.id] ?? row.payment ?? ''}
+                                    onChange={(event) => handlePaymentChange(row.id, event.target.value)}
+                                    placeholder="Enter payment"
+                                  />
+                                  <button type="button" className="secondary-button small-button" onClick={() => handlePaymentSave(row.id, row.payment || '')} disabled={paymentDrafts[row.id] === undefined || paymentDrafts[row.id] === (row.payment || '')}>Save</button>
+                                </div>
                               ) : (
                                 <span className="payment-placeholder">-</span>
                               )}
@@ -372,7 +386,7 @@ const PartiesPage = ({ partyList = [], parcelData = [], selectedPartyName = '', 
                             <td>
                               <div className="table-actions">
                                 <button type="button" className="icon-button" onClick={() => handleToggleParcelStatus(row.id)}>{row.status === 'Received' ? 'Mark Pending' : 'Mark Received'}</button>
-                                <button type="button" className="icon-button danger" onClick={() => onDeleteParcel && onDeleteParcel(row.id)}>Delete</button>
+                                {canDelete && <button type="button" className="icon-button danger" onClick={() => onDeleteParcel && onDeleteParcel(row.id)}>Delete</button>}
                               </div>
                             </td>
                           </tr>

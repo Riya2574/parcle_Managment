@@ -26,6 +26,8 @@ const App = () => {
   const [parcelPageInitialParty, setParcelPageInitialParty] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [branding, setBranding] = useState({ shopName: 'Rathore Shop', logoUrl: '' })
+  const isAdmin = currentUser?.role === 'Admin'
 
   const loadData = async () => {
     const [partiesResult, parcelsResult, dashboardResult, reportsResult, usersResult] = await Promise.allSettled([
@@ -62,12 +64,32 @@ const App = () => {
 
   useEffect(() => {
     if (api.getToken()) {
-      api.me().then((result) => { setCurrentUser(result.user); setIsAuthenticated(true); return loadData() }).catch(() => {
+      api.me().then(async (result) => { setCurrentUser(result.user); setBranding(await api.branding()); setIsAuthenticated(true); return loadData() }).catch(() => {
         api.setToken(null)
         setError('Your session expired. Please sign in again.')
       })
     }
   }, [])
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined
+    const searchTimer = setTimeout(async () => {
+      try {
+        const searchResults = await api.parcels(topbarSearch)
+        setParcelData(searchResults)
+        setDashboardData((current) => current ? { ...current, recent: searchResults.slice(0, 10) } : current)
+      } catch (requestError) {
+        setError(requestError.message)
+      }
+    }, 250)
+    return () => clearTimeout(searchTimer)
+  }, [isAuthenticated, topbarSearch])
+
+  useEffect(() => {
+    if (!successMessage) return undefined
+    const successTimer = setTimeout(() => setSuccessMessage(''), 3000)
+    return () => clearTimeout(successTimer)
+  }, [successMessage])
 
   const handleLogin = async (credentials) => {
     try {
@@ -75,6 +97,7 @@ const App = () => {
       const result = await api.login(credentials)
       api.setToken(result.token)
       setCurrentUser(result.user)
+      setBranding(await api.branding())
       setIsAuthenticated(true)
       await loadData()
       setSuccessMessage('Login successful.')
@@ -87,15 +110,18 @@ const App = () => {
   const handleLogout = () => {
     setIsAuthenticated(false)
     setCurrentUser(null)
+    setSuccessMessage('')
     api.setToken(null)
     setSelectedParty('')
     setTopbarSearch('')
   }
 
   const handleNavigate = (view) => {
+    if (!isAdmin && ['Users', 'Settings'].includes(view)) return
     setActiveView(view)
     setParcelPageInitialParty('')
     setTopbarSearch('')
+    setSuccessMessage('')
   }
 
   const handleGoToParcels = (partyName) => {
@@ -132,8 +158,14 @@ const App = () => {
 
   const handleUpdateParcel = (parcelId, updater) => {
     const row = parcelData.find((item) => item.id === parcelId)
-    if (!row) return
-    api.updateParcel(parcelId, updater(row)).then((updated) => setParcelData((currentRows) => currentRows.map((item) => item.id === parcelId ? updated : item))).catch((requestError) => setError(requestError.message))
+    if (!row) return Promise.reject(new Error('Parcel not found'))
+    return api.updateParcel(parcelId, updater(row)).then((updated) => {
+      setParcelData((currentRows) => currentRows.map((item) => item.id === parcelId ? updated : item))
+      return updated
+    }).catch((requestError) => {
+      setError(requestError.message)
+      throw requestError
+    })
   }
 
   const handleDeleteParcel = (parcelId) => {
@@ -159,7 +191,7 @@ const App = () => {
 
   return (
     <div className="app-shell">
-      <Sidebar activeView={activeView} onNavigate={handleNavigate} onLogout={handleLogout} />
+      <Sidebar activeView={activeView} onNavigate={handleNavigate} onLogout={handleLogout} branding={branding} isAdmin={isAdmin} />
       <main className="dashboard">
         {error && <p className="auth-error">{error}</p>}
         {successMessage && <p className="auth-success" role="status">{successMessage}</p>}
@@ -182,7 +214,8 @@ const App = () => {
             onDeleteParty={handleDeleteParty}
             onGoToParcels={handleGoToParcels}
             onUpdateParcel={handleUpdateParcel}
-            onDeleteParcel={handleDeleteParcel}
+            onDeleteParcel={isAdmin ? handleDeleteParcel : undefined}
+            canDelete={isAdmin}
             searchQuery={topbarSearch}
           />
         ) : activeView === 'Parcels' ? (
@@ -191,16 +224,22 @@ const App = () => {
             partyOptions={partyList.map((party) => party.name)}
             initialPartyName={parcelPageInitialParty}
             onSaveParcel={handleSaveParcel}
+            searchResults={topbarSearch ? parcelData : []}
+            searchQuery={topbarSearch}
           />
         ) : activeView === 'Reports' ? (
           <ReportsPage reportRows={reportData} searchQuery={topbarSearch} />
-        ) : activeView === 'Users' ? (
+        ) : activeView === 'Users' && isAdmin ? (
           <UsersPage users={users} onCreateStaff={async (staff) => {
             const createdUser = await api.createUser(staff)
             setUsers((current) => [createdUser, ...current])
+          }} onUpdateUserStatus={async (user) => {
+            const nextStatus = user.status === 'Active' ? 'Inactive' : 'Active'
+            const updatedUser = await api.updateUserStatus(user.id, nextStatus)
+            setUsers((current) => current.map((item) => item.id === updatedUser.id ? updatedUser : item))
           }} />
-        ) : activeView === 'Settings' ? (
-          <SettingsPage />
+        ) : activeView === 'Settings' && isAdmin ? (
+          <SettingsPage onNavigate={handleNavigate} onBrandingChange={setBranding} />
         ) : (
           <>
             <StatsGrid data={dashboardData} />
@@ -208,8 +247,8 @@ const App = () => {
               <RecentParcels
                 parcels={dashboardData?.recent || []}
                 onViewAll={() => {
-                  setActiveView('Parcels')
-                  setParcelPageInitialParty('')
+                  setActiveView('Reports')
+                  setTopbarSearch('')
                 }}
               />
               <StatusSummary data={dashboardData} />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-const UsersPage = ({ users = [], onCreateStaff }) => {
+const UsersPage = ({ users = [], onCreateStaff, onUpdateUserStatus }) => {
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Staff' })
   const [error, setError] = useState('')
@@ -108,6 +108,7 @@ const UsersPage = ({ users = [], onCreateStaff }) => {
                   <td>{user.role}</td>
                   <td>{user.email}</td>
                   <td>{user.status}</td>
+                  <td>{user.role === 'Staff' && <button type="button" className="secondary-button" onClick={() => { if (user.status !== 'Active' || window.confirm(`Remove ${user.name} from active staff?`)) onUpdateUserStatus(user) }}>{user.status === 'Active' ? 'Remove' : 'Restore'}</button>}</td>
                 </tr>
               ))}
             </tbody>

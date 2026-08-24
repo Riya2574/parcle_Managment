@@ -1,6 +1,6 @@
 # Parcel Management API
 
-Node.js and Express backend for the parcel management frontend. Data is stored in SQLite and the database starts empty. No demo records are inserted.
+Node.js and Express backend for the parcel management frontend. Data is stored in MySQL/MariaDB. Required tables are created automatically when the server starts.
 
 ## Run
 
@@ -8,6 +8,7 @@ Node.js and Express backend for the parcel management frontend. Data is stored i
 cd backend
 npm install
 Copy-Item .env.example .env
+# Set DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, and DB_NAME in .env first.
 npm run dev
 ```
 
