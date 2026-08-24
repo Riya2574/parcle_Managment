@@ -266,7 +266,9 @@ app.get('/api/branding', auth, async (_req, res) => {
 app.use((error, _req, res, _next) => { console.error(error); res.status(500).json({ error: 'Internal server error' }) })
 const port = Number(process.env.PORT || 4000)
 initializeDatabase()
-  .then(() => app.listen(port, () => console.log(`Parcel API listening on http://localhost:${port}`)))
+  .then(() => app.listen(port, '0.0.0.0', () => {
+    console.log(`Parcel API listening on port ${port}`)
+  }))
   .catch((error) => {
     console.error('Database initialization failed:', error.message)
     process.exitCode = 1
